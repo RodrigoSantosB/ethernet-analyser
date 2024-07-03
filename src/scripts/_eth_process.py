@@ -15,20 +15,31 @@ class EthernetProcess:
         
         for packet in packets:
             if Raw in packet:
-                # time = packet.time
                 payload = packet[Raw].load.hex()[48:96]  # Extrair payload como hexadecimal
                 # Adiciona os elementos na lista
                 data_packets.append(payload)
                 
                 # Separar os bytes entre chanel0 e chanel1
+                temp_chanel0 = []
+                temp_chanel1 = []
+                
                 for i in range(0, len(payload), 4):
                     byte = payload[i:i+4]
                     if (i // 4) % 2 == 0:
-                        chanel0.append(byte)
+                        temp_chanel0.append(byte)
                     else:
-                        chanel1.append(byte)
+                        temp_chanel1.append(byte)
+                
+                # Agrupar bytes em conjuntos de 6 e concatenar
+                for i in range(0, len(temp_chanel0), 6):
+                    group = temp_chanel0[i:i+6]
+                    chanel0.append(''.join(group))
+                for i in range(0, len(temp_chanel1), 6):
+                    group = temp_chanel1[i:i+6]
+                    chanel1.append(''.join(group))
                         
         return data_packets, chanel0, chanel1
+
     
     
     def _process_data_pcapng(self, packets):
@@ -45,12 +56,13 @@ class EthernetProcess:
         return payloads
     
     
-    def _create_dataframe(self, csv_path, payload):
+    def _create_dataframe(self, csv_path, chanel0, chanel1):
         time_df = pd.read_csv(csv_path)
         time_df = time_df['Time'] 
-        if len(time_df) != payload.shape[0]:
-            raise ValueError("O tamanho do vetor de tempos e o tamanho do vetor de \
-                                payload devem ser correspondentes")
+        
+        if len(time_df) != len(chanel0) or len(time_df) != len(chanel1):
+            raise ValueError("O tamanho do vetor de tempos e o tamanho dos vetores de \
+                                chanel0 e chanel1 devem ser correspondentes")
 
         # Converter 'time' para DataFrame se não for
         if isinstance(time_df, pd.Series):
@@ -58,9 +70,11 @@ class EthernetProcess:
         else:
             dataframe = time_df.copy()
         
-        # Adicionar a coluna de vetores
-        dataframe['Payload'] = list(payload)
+        # Adicionar as colunas de vetores
+        dataframe['Chanel0'] = chanel0
+        dataframe['Chanel1'] = chanel1
         return dataframe
+
 
     def label_anomalies(self, df, output_filename, attck_name='malicius', 
                             expected_interval=0.000125, multiplier=2):
