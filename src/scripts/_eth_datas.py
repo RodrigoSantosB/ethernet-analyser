@@ -1,15 +1,91 @@
 from _eth_libs import *
+    
 class DataProcessing:
     def __init__(self) -> None:
         ...
         
-    def dataset_transform(self, path, selected_features=None):
-        # columns = ['Timestamp', 'Chanel0', 'Chanel1', 'Time_Diff', 'Label']
-        files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
-        dfs = [pd.read_csv(os.path.join(path, arquivo), sep=',', engine='python') for arquivo in files]
+        
+    def undersample_to_minority_class(self, df, target_column):
+        """
+        Aplica undersampling ao dataset para que todas as classes fiquem equilibradas, 
+        com o número de instâncias igual ao da classe minoritária.
+        
+        Parâmetros:
+        - df: DataFrame contendo os dados.
+        - target_column: Nome da coluna de alvo (classe) no DataFrame.
+        
+        Retorna:
+        - DataFrame com undersampling aplicado.
+        """
+        # Identifica a classe minoritária
+        class_counts = df[target_column].value_counts()
+        min_class_count = class_counts.min()
+        
+        # Lista para armazenar os DataFrames subamostrados
+        df_list = []
+        
+        # Realiza o undersampling para cada classe
+        for class_value in class_counts.index:
+            df_class = df[df[target_column] == class_value]
+            df_class_undersampled = resample(df_class, 
+                                                replace=False,    # sem substituição
+                                                n_samples=min_class_count,  # para igualar o número de instâncias da classe minoritária
+                                                random_state=42) # para reprodutibilidade
+            df_list.append(df_class_undersampled)
+        
+        # Combina todos os DataFrames subamostrados
+        df_undersampled = pd.concat(df_list)
+            
+        return df_undersampled
 
-        df_concat = pd.concat(dfs, ignore_index=True)
-        df_concat = df_concat.drop(['Timestamp'], axis=1)
+    def oversample_to_majority_class(self, df, target_column):
+        """
+        Aplica oversampling ao dataset para que todas as classes fiquem equilibradas, 
+        com o número de instâncias igual ao da classe majoritária.
+        
+        Parâmetros:
+        - df: DataFrame contendo os dados.
+        - target_column: Nome da coluna de alvo (classe) no DataFrame.
+        
+        Retorna:
+        - DataFrame com oversampling aplicado.
+        """
+        ros = RandomOverSampler(random_state=42)
+        X = df.drop(columns=[target_column])
+        y = df[target_column]
+        X_resampled, y_resampled = ros.fit_resample(X, y)
+        
+        df_resampled = pd.concat([X_resampled, pd.Series(y_resampled, name=target_column)], axis=1)
+        
+        return df_resampled
+            
+    def dataset_transform(self, path, selected_features=None, all_dataframe=False, sampling_method=None):
+        """
+        Transforma o dataset e aplica o método de sampling se especificado.
+        
+        Parâmetros:
+        - path: Caminho para os arquivos CSV.
+        - selected_features: Lista de features selecionadas.
+        - sampling_method: Método de sampling ('undersampling' ou 'oversampling').
+        
+        Retorna:
+        - DataFrame original, DataFrame transformado, e target.
+        """
+        if all_dataframe:
+            # columns = ['Timestamp', 'Chanel0', 'Chanel1', 'Time_Diff', 'Label']
+            files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+            dfs = [pd.read_csv(os.path.join(path, arquivo), sep=',', engine='python') for arquivo in files]
+
+            df_concat = pd.concat(dfs, ignore_index=True)
+            df_concat = df_concat.drop(['Timestamp'], axis=1)
+        else:
+            df_concat = pd.read_csv(path)
+        
+        # Aplicar o método de sampling se especificado
+        if sampling_method == 'undersampling':
+            df_concat = self.undersample_to_minority_class(df_concat, 'Label')
+        elif sampling_method == 'oversampling':
+            df_concat = self.oversample_to_majority_class(df_concat, 'Label')
 
         # Função para converter pares hexadecimais em decimais
         def hex_to_decimal(hex_str):
@@ -63,11 +139,10 @@ class DataProcessing:
         
         # Extrair os valores alvo
         target = df_concat['Label'].values
+        data_numeric = data_numeric.values
 
         return df_concat, data_numeric, target
 
-
-        
         
     # Plotar distribuićão de classe
     def plot_class_distribution(self, datas):
@@ -78,16 +153,14 @@ class DataProcessing:
         hist1.show()
 
     
-    def encode_dataframe(self, path, classify_to_binary=True):
-        df, data_numeric, target = self.dataset_transform(path)
-        datas = df.copy ( deep = True )
+    def encode_dataframe(self, dataset, target, classify_to_binary=True):
+        datas = dataset.copy ( deep = True )
         tam = len(datas.columns)
         
         # Substituir 'benign' por 0 e outras labels por 1
         if classify_to_binary:
             datas['Label'] = datas['Label'].apply(lambda x: 0 if x == 'benign' else 1)
         
-        predictors = data_numeric.values
         if classify_to_binary:
             target  = datas.iloc[:, (tam-1)].values
-        return datas, predictors, data_numeric, target
+        return datas, target
