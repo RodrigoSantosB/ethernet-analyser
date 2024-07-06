@@ -1,4 +1,4 @@
-from _eth_libs import *
+from scripts._eth_libs import *
 
 class ModelsTraining:
     def __init__(self) -> None:

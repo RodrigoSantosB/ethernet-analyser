@@ -1,1 +1,3 @@
 ethernet-env
+src/scripts/logs
+.env

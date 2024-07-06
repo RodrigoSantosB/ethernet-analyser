@@ -4,7 +4,7 @@ import plotly.io as pio
 import matplotlib.pyplot as plt
 
 from pydub import AudioSegment
-from scapy.all import rdpcap, Raw
+from scapy.all import rdpcap, sniff, Raw
 from IPython.display import HTML, Audio
 import librosa
 import wave
@@ -12,6 +12,7 @@ import wave
 import pandas as pd
 import numpy as np
 import os
+import sys
 
 
 import time
@@ -61,3 +62,5 @@ from tensorflow.keras.callbacks import EarlyStopping, TensorBoard
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../')

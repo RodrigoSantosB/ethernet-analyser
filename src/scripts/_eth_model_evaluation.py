@@ -1,27 +1,13 @@
-from _eth_libs import *
+from scripts._eth_libs import *
 
 class ModelEvaluation:
     def __init__(self) -> None:
         pass
 
     # Carregar o model treinado
-    def load_trained_model(self, filepath, input_dim, model_name='others'):
-
-        if model_name == 'mlp':
-            model = Sequential()
-            model.add(Dense(64, input_dim=input_dim, activation='relu'))
-            model.add(Dense(32, activation='relu'))
-            model.add(Dense(1, activation='sigmoid'))
-            
-            model.compile(  optimizer=Adam(learning_rate=0.001), 
-                            loss='binary_crossentropy', 
-                            metrics=['accuracy'])
-            
-            model.load_weights(filepath)
-            return model
-        else:
-            model = joblib.load(filepath)
-            return model
+    def load_trained_model(self, filepath):
+        model = joblib.load(filepath)
+        return model
         
     # Plotar matriz de confusão    
     def plot_confusion_matrix(self, model, x_test, y_test, 
@@ -52,7 +38,7 @@ class ModelEvaluation:
         
     # Verificar overfitting e plotar a curva ROC
     def evaluate_overfitting_and_plot_roc(self, model_path, X_train, 
-                                          y_train, X_test, y_test):
+                                            y_train, X_test, y_test):
         
         # Carregar o model
         model = joblib.load(model_path)
