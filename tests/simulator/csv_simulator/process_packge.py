@@ -1,11 +1,17 @@
+import time
 import sys
 import os
-from functools import partial
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
+from functools import partial
+from scapy.all import Raw, sniff
+from colorama import init, Fore, Style
+import pandas as pd
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 from scripts._eth_libs import *
 from scripts._eth_model_evaluation import ModelEvaluation
 
+init(autoreset=True)  # Initialize colorama
 
 def hex_to_decimal(hex_str):
     try:
@@ -15,10 +21,8 @@ def hex_to_decimal(hex_str):
         return []
 
 data = []
-md  = ModelEvaluation()
+md = ModelEvaluation()
 label_attck = True  # Variável que define se a mensagem deve ser classificada como ataque ou benigno
-
-
 
 def inferency(packet, model_filepath):
     global data
@@ -37,11 +41,11 @@ def inferency(packet, model_filepath):
         except ValueError:
             print(f"Payload mal formatado: {payload_str}")
 
-        # Make the inference network:    
+        # Make the inference network:
         model = md.load_trained_model(model_filepath)
         predictions = model.predict(data)
 
-        messages = [f"{payload}" for _ in range(len(predictions))]  # substitua pelo conteúdo real das mensagens
+        messages = [f"{payload}" for _ in range(len(predictions))]
                 
         # Nome do arquivo CSV
         csv_file = 'predictions.csv'
@@ -55,48 +59,34 @@ def inferency(packet, model_filepath):
         
         try:
             # Iterar sobre o vetor de previsão e imprimir a mensagem correspondente
-            for prediction, msg in zip(predictions, messages):
-                if prediction == 'benign':
-                    print(f"Message is benign: {msg}")
+            for i, (prediction, msg) in enumerate(zip(predictions, messages)):
+                if prediction in ['benign', 0]:
+                    print(Fore.BLUE + f"Message is benign: {msg}")
                     new_row = pd.DataFrame({'Prediction': ['benign'], 'Message': [msg]})
 
-                elif prediction == 'delay_attck':
-                    print(f"Message is delay attack: {msg}")
-                    new_row = pd.DataFrame({'Prediction': ['delay attack'], 'Message': [msg]})
+                elif prediction in ['delay_attck', 'sequency_attck', 1]:
+                    print(Fore.RED + f"Message is {prediction.replace('_', ' ')}: {msg}")
+                    new_row = pd.DataFrame({'Prediction': [prediction.replace('_', ' ')], 'Message': [msg]})
 
-                elif prediction == 'sequency_attck':
-                    print(f"Message is sequence attack: {msg}")
-                    new_row = pd.DataFrame({'Prediction': ['sequence attack'], 'Message': [msg]})
-                    
-                elif prediction == 0:
-                    print(f"Message is benign: {msg}")
-                    new_row = pd.DataFrame({'Prediction': ['benign'], 'Message': [msg]})
-                    
-                
-                elif prediction == 1:
-                    print(f"Message is malignant: {msg}")
-                    new_row = pd.DataFrame({'Prediction': ['malignant'], 'Message': [msg]})
-                    
                 else:
-                    print(f"Message is unknown attack: {msg} sing the prediction")
+                    print(Fore.RED + f"Message is unknown attack: {msg} using the prediction")
                     new_row = pd.DataFrame({'Prediction': ['unknown attack'], 'Message': [msg]})
+                
                 df = pd.concat([df, new_row], ignore_index=True)
 
-                if len(df) % 20 == 0:
+                if (i + 1) % 20 == 0:
                     save_to_csv(df, csv_file)       
 
-            # Salvar o DataFrame final após a conclusão do loop
-            save_to_csv(df, csv_file)   
+            # Save to DataFrame after loop conclusion
+            save_to_csv(df, csv_file)
                     
         except ValueError as e:
             print(e)
-            
             
 def listen(model_filepath, interface='veth1', export_interval=60, output_file='amostra.csv'):
     global data
     start_time = time.time()
     while True:
-        
         inferency_callback = partial(inferency, model_filepath=model_filepath)
         sniff(iface=interface, prn=inferency_callback, store=0, timeout=1)
         current_time = time.time()
@@ -110,7 +100,6 @@ def listen(model_filepath, interface='veth1', export_interval=60, output_file='a
             data = []
 
 if __name__ == '__main__':
-
     interface = 'veth0'
     model_filepath = '/home/rsb6/Desktop/LIVE/ATV4/ethernet-analyser/tests/trained_models/models_multclass/forest_model.pkl'
     listen(model_filepath, interface)

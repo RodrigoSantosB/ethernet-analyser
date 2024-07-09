@@ -1,11 +1,14 @@
 import pandas as pd
+import warnings
 from scapy.all import Ether, sendp
 import time
 import sys
+warnings.filterwarnings("ignore")
+
 
 path = '/home/rsb6/Desktop/LIVE/ATV4/ethernet-analyser/src/Dataset_labeled/labeled_drop.csv'
 
-def send_csv(file_path, interface='veth0', interval=0.1):
+def send_csv(file_path, interface='veth0', interval=0.1, dst_mac='ff:ff:ff:ff:ff:ff'):
     # Leia o CSV
     df = pd.read_csv(file_path)
     
@@ -19,6 +22,7 @@ def send_csv(file_path, interface='veth0', interval=0.1):
             sendp(packet, iface=interface, verbose=False)
             # Aguarde o intervalo especificado antes de enviar o próximo pacote
             time.sleep(interval)
+            # print(packet)
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:

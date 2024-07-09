@@ -1,4 +1,4 @@
-from scripts._eth_libs import *
+from _eth_libs import *
 
 class EthernetProcess:
     def __init__(self) -> None:
@@ -15,11 +15,11 @@ class EthernetProcess:
         
         for packet in packets:
             if Raw in packet:
-                payload = packet[Raw].load.hex()[48:96]  # Extrair payload como hexadecimal
-                # Adiciona os elementos na lista
+                payload = packet[Raw].load.hex()[48:96]  # Extract to hexadecimal payload 
+                # Add the elements of list
                 data_packets.append(payload)
                 
-                # Separar os bytes entre chanel0 e chanel1
+                # separate the bytes betwen chanel0 and chanel1
                 temp_chanel0 = []
                 temp_chanel1 = []
                 
@@ -30,7 +30,7 @@ class EthernetProcess:
                     else:
                         temp_chanel1.append(byte)
                 
-                # Agrupar bytes em conjuntos de 6 e concatenar
+                # Group the bytes in set of 6 and concat
                 for i in range(0, len(temp_chanel0), 6):
                     group = temp_chanel0[i:i+6]
                     chanel0.append(''.join(group))
@@ -43,7 +43,7 @@ class EthernetProcess:
     
     
     def _process_data_pcapng(self, packets):
-        # Função para converter pares hexadecimais em decimais
+        # Functions for to convert hexadecimals pars in decimals
         hex_to_decimal = lambda hex_str: [int(hex_str[i:i+2], 16) 
                                             for i in range(0, len(hex_str), 2)]
 
@@ -61,8 +61,8 @@ class EthernetProcess:
         time_df = time_df['Time'] 
         
         if len(time_df) != len(chanel0) or len(time_df) != len(chanel1):
-            raise ValueError("O tamanho do vetor de tempos e o tamanho dos vetores de \
-                                chanel0 e chanel1 devem ser correspondentes")
+            raise ValueError("The size of the time vector and the sizes of the \
+                                channel0 and channel1 vectors must correspond")
 
         # Converter 'time' para DataFrame se não for
         if isinstance(time_df, pd.Series):
@@ -79,20 +79,17 @@ class EthernetProcess:
     def label_anomalies(self, df, output_filename, attck_name='malicius', 
                             expected_interval=0.000125, multiplier=2):
                 
-        # Calcular a diferença de tempo entre linhas consecutivas
+        # Calculate the time difference between consecutive rows
         df['Time_Diff'] = df['Timestamp'].diff().fillna(0)
-        
-        # Calcular o threshold
+        # Calculate the threshold
         threshold = expected_interval * multiplier
-        
-        # Detectar anomalias com base no threshold e rotular como 'malicius' ou 'benigno'
+        # Detect anomalies based on the threshold and label them as 'malicious' or 'benign'.
         df['Label'] = df['Time_Diff'].apply(lambda x: attck_name 
                             if (x > threshold or x < (expected_interval-0.000001)) 
                             else 'benign')
         
-        # Exportar o DataFrame como um arquivo CSV
+        # Export DataFrame to CSV
         df.to_csv(f'{output_filename}.csv', index=False)
-        
         return df
     
     def reconstruct_audio(self, packets, output_file=None, sample_rate = 44100,
